@@ -1,8 +1,13 @@
-# python-pkg
+# Jack's Jax Utilities
 
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/psf/black)
 
-TODO: Update title, add basic description.
+A collection of utilities I've written for [jax](https://github.com/google/jax).
+
+Currently provides:
+
+- [LOBPCG](jju/linalg/lobpcg/basic.py) implementation for optionally sparse eigendecomposition.
+- [vjp](jju/linalg/custom_gradients.py) for partial eigendecomposition, with optionally sparse inputs.
 
 ## Pre-commit
 
