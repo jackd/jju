@@ -21,7 +21,11 @@ def random_coo(rng, shape, sparsity=0.1, dtype=np.float64) -> sp.coo_matrix:
     return sp.coo_matrix((data, (row, col)), shape=shape)
 
 
-def random_spd_coo(n, sparsity=0.1, dtype=np.float64, seed=0):
+def random_spd_csr(n, sparsity=0.1, dtype=np.float64, seed=0) -> sp.csr_matrix:
+    return random_spd_coo(n, sparsity, dtype, seed).tocsr()
+
+
+def random_spd_coo(n, sparsity=0.1, dtype=np.float64, seed=0) -> sp.coo_matrix:
     rng = np.random.default_rng(seed)
     a = random_coo(rng, (n, n), sparsity=sparsity, dtype=dtype)
     # strengthen diagonal to make eigenvectors distinct
@@ -31,7 +35,7 @@ def random_spd_coo(n, sparsity=0.1, dtype=np.float64, seed=0):
     return reorder_coo(a)
 
 
-def reorder_coo(a: sp.coo_matrix):
+def reorder_coo(a: sp.coo_matrix) -> sp.coo_matrix:
     i0 = np.ravel_multi_index((a.row, a.col), a.shape)
     perm = np.argsort(i0)
     return sp.coo_matrix((a.data[perm], (a.row[perm], a.col[perm])), shape=a.shape)
@@ -58,4 +62,4 @@ def random_csr(rng, shape, sparsity=0.1, dtype=np.float64) -> sp.csr_matrix:
 
 def csr_components(csr: sp.csr_matrix) -> CSRComponents:
     """(data, indices, indptr)."""
-    return CSRComponents(csr.data, csr.indices, csr.indptr)
+    return CSRComponents(csr.data, csr.indices, csr.indptr, csr.shape)

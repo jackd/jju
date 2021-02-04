@@ -1,14 +1,16 @@
-from functools import partial
 from typing import Optional, Tuple
 
 import jax
 import jax.numpy as jnp
 
 
-def assert_coo(data, row, col):
+def assert_coo(data, row, col, sized=None):
+    assert row.size == col.size == data.size
     assert row.ndim == 1
     assert col.ndim == 1
     assert data.ndim == 1
+    if sized is not None:
+        assert sized.ndim == 1
 
 
 def indices_1d(row: jnp.ndarray, col: jnp.ndarray, ncols: Optional[int] = None):
@@ -64,54 +66,76 @@ def symmetrize(
     return (data + data.take(perm)) / 2
 
 
-@partial(jax.jit, static_argnums=(3,))
-def matvec(data, row, col, nrows, v):
-    assert_coo(data, row, col)
-    assert v.ndim == 1
-    dv = data * v[col]
-    return jnp.zeros(nrows, dtype=dv.dtype).at[row].add(dv)
+@jax.jit
+def dot(data, row, col, sized, v):
+    """
+    Perform matrix-vector product `A @ v` with coo formatted matrix `A`.
+
+    Note the use of `sized` rather than `nrows` is to allow `matvec` to be compiled
+    without static arguments. This is a work-around and is likely to change soon.
+
+    See https://github.com/google/jax/issues/5609.
+
+    Args:
+        data: nonzero values of `A`.
+        row: row indices of nonzero values of `A`.
+        col: column indices of nonzero values of `A`.
+        sized: array with size `nrows`, the number of rows of `A`.
+        v:
+
+    Returns:
+        `n
+    """
+    assert_coo(data, row, col, sized)
+    dv = jnp.reshape(data, (-1, *(1,) * (v.ndim - 1))) * v[col]
+    return jnp.zeros((sized.size, *v.shape[1:]), dtype=dv.dtype).at[row].add(dv)
 
 
-@partial(jax.jit, static_argnums=(3,))
-def matmul(
-    data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, nrows: int, B: jnp.ndarray
-):
-    assert_coo(data, row, col)
-    if B.ndim == 1:
-        return matvec(data, row, col, nrows, B)
-    assert B.ndim == 2
-    return jax.vmap(matvec, in_axes=(None, None, None, None, 1), out_axes=1)(
-        data, row, col, nrows, B
-    )
+def dot_fun(data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, sized: jnp.ndarray):
+    assert_coo(data, row, col, sized)
+    return jax.tree_util.Partial(dot, data, row, col, sized)
 
 
-def matmul_fun(data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, nrows: int):
-    assert isinstance(nrows, int)
-    return jax.tree_util.Partial(matmul, data, row, col, nrows)
-
-
-def masked_bilinear_form(row, col, x, A, y):
-    Ay = A @ y
-    return (x.take(row, axis=1) * Ay.take(col, axis=1)).sum(axis=0)
-
-
-def masked_bilinear_form_fun(row, col):
-    return jax.tree_util.Partial(masked_bilinear_form, row, col)
+def masked_matmul(row, col, x, y):
+    """Compute `(x @ y)[row, col]` at `[row, col]` for rank-2 `x` and `y`."""
+    return masked_inner(row, col, x.T, y)
+    # return (x.T.take(row, axis=1) * y.take(col, axis=1)).sum(axis=0)
 
 
 def to_dense(
-    data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, shape: Tuple[int, ...]
+    data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, shape: Tuple[int, int]
 ):
     out = jnp.zeros(shape)
     return jax.ops.index_update(out, jax.ops.index[row, col], data)
 
 
-def masked_outer(x, y, row, col):
+def from_dense(dense: jnp.ndarray):
+    row, col = jnp.where(dense)
+    return dense[row, col], row, col
+
+
+def masked_inner(row, col, x, y):
+    """Comput `(x.T @ y)[row, col]`."""
+    assert x.ndim == 2
+    assert y.ndim == 2
+    return (x[:, row] * y[:, col]).sum(axis=0)
+
+
+def masked_outer(row, col, x, y):
+    """Compute `(x @ y.T)[row, col]`."""
     return x[row] * y[col]
 
 
+def masked_inner_fun(row, col):
+    return jax.tree_util.Partial(masked_inner, row, col)
+
+
 def masked_outer_fun(row, col):
-    return jax.tree_util.Partial(masked_outer, row=row, col=col)
+    return jax.tree_util.Partial(masked_outer, row, col)
+
+
+def masked_matmul_fun(row, col):
+    return jax.tree_util.Partial(masked_matmul, row, col)
 
 
 def is_symmetric(

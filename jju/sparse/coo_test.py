@@ -5,7 +5,7 @@ from jax import test_util as jtu
 from jax.config import config
 
 from jju.sparse import coo
-from jju.test_utils import coo_components, random_coo
+from jju.test_utils import coo_components, random_coo, reorder_coo
 
 config.parse_flags_with_absl()
 
@@ -19,6 +19,15 @@ class CooTest(jtu.JaxTestCase):
         expected = coo_mat.todense()
         self.assertAllClose(actual, expected)
 
+    def test_from_dense(self):
+        shape = (11, 13)
+        rng = np.random.default_rng(0)
+        expected = random_coo(rng, shape, sparsity=0.1)
+        data, row, col = coo.from_dense(np.array(expected.todense()))
+        self.assertAllClose(data, expected.data)
+        self.assertAllClose(row, expected.row)
+        self.assertAllClose(col, expected.col)
+
     def test_matvec(self):
         No = 79
         Ni = 61
@@ -27,11 +36,11 @@ class CooTest(jtu.JaxTestCase):
         coo_mat = random_coo(rng, (No, Ni), sparsity=0.1)
         expected = coo_mat @ v
 
-        actual = coo.matvec(
+        actual = coo.dot(
             jnp.array(coo_mat.data),
             jnp.array(coo_mat.row),
             jnp.array(coo_mat.col),
-            No,
+            jnp.zeros(No),
             jnp.array(v),
         )
         self.assertAllClose(actual, expected, rtol=1e-4)
@@ -46,11 +55,11 @@ class CooTest(jtu.JaxTestCase):
 
         expected = coo_mat @ B
 
-        actual = coo.matmul(
+        actual = coo.dot(
             jnp.array(coo_mat.data),
             jnp.array(coo_mat.row),
             jnp.array(coo_mat.col),
-            No,
+            jnp.zeros(No),
             jnp.array(B),
         )
         self.assertAllClose(actual, expected, rtol=1e-4)
@@ -75,50 +84,67 @@ class CooTest(jtu.JaxTestCase):
 
         self.assertAllClose(actual, expected)
 
-    # def test_symmetrize(self):
-    #     n = 50
-    #     shape = (n, n)
-    #     rng = np.random.default_rng(0)
-    #     coo_mat = random_coo(rng, shape, sparsity=0.1)
-    #     actual = coo.symmetrize(coo_mat.data, coo_mat.row, coo_mat.col, n)
-
-    #     expected = (coo_mat + coo_mat.T).data
-    #     self.assertAllClose(actual, expected)
-
-    def test_bilinear_form(self):
+    def test_symmetrize(self):
         n = 50
-        m = 25
+        shape = (n, n)
+        rng = np.random.default_rng(0)
+        coo_mat = random_coo(rng, shape, sparsity=0.1)
+        coo_mat = ((coo_mat + coo_mat.T) / 2).tocoo()
+        coo_mat.sum_duplicates()
+        coo_mat = reorder_coo(coo_mat)
+        actual = coo.symmetrize(coo_mat.data, coo_mat.row, coo_mat.col, n)
+
+        self.assertAllClose(actual, coo_mat.data)
+
+    def test_masked_matmul(self):
+        nx = 53
+        ny = 19
+        nh = 11
+
         rng = np.random.default_rng(0)
         dtype = np.float32
-        coo_mat = random_coo(rng, (m, m), sparsity=0.2, dtype=dtype)
-        x = rng.normal(size=(n, m)).astype(dtype)
-        y = rng.normal(size=(n, m)).astype(dtype)
-        data = rng.normal(size=(n, n)).astype(dtype)
+        coo_mat = random_coo(rng, (nx, ny), sparsity=0.2, dtype=dtype)
+        x = rng.normal(size=(nx, nh)).astype(dtype)
+        y = rng.normal(size=(nh, ny)).astype(dtype)
 
-        data = jnp.asarray(data)
         row = jnp.asarray(coo_mat.row)
         col = jnp.asarray(coo_mat.col)
 
-        bilinear_form = coo.masked_bilinear_form_fun(row, col)
-        actual = bilinear_form(x, data, y)
-
-        expected = x.T @ data @ y
-        expected = expected[row, col]
+        actual = coo.masked_matmul(row, col, x, y)
+        expected = (x @ y)[row, col]
         self.assertAllClose(actual, expected, rtol=1e-4)
 
-    def test_outer(self):
+    def test_masked_inner(self):
+        nx = 53
+        ny = 19
+        nh = 11
+
+        rng = np.random.default_rng(0)
+        dtype = np.float32
+        coo_mat = random_coo(rng, (nx, ny), sparsity=0.2, dtype=dtype)
+        x = rng.normal(size=(nh, nx)).astype(dtype)
+        y = rng.normal(size=(nh, ny)).astype(dtype)
+
+        row = jnp.asarray(coo_mat.row)
+        col = jnp.asarray(coo_mat.col)
+
+        actual = coo.masked_inner(row, col, x, y)
+        expected = (x.T @ y)[row, col]
+        self.assertAllClose(actual, expected, rtol=1e-4)
+
+    def test_masked_outer(self):
         n = 50
         m = 25
         dtype = np.float32
         rng = np.random.default_rng(0)
-        coo_mat = random_coo(rng, (m, m), sparsity=0.2, dtype=dtype)
-        row = jnp.array(coo_mat.row)
-        col = jnp.array(coo_mat.col)
+        coo_mat = random_coo(rng, (n, m), sparsity=0.2, dtype=dtype)
+        row = jnp.array(coo_mat.row, dtype=jnp.int32)
+        col = jnp.array(coo_mat.col, dtype=jnp.int32)
 
         x = rng.normal(size=(n,)).astype(dtype)
         y = rng.normal(size=m).astype(dtype)
 
-        actual = coo.masked_outer(x, y, row, col)
+        actual = coo.masked_outer(row, col, x, y)
         expected = jnp.outer(x, y)[row, col]
         self.assertAllClose(actual, expected)
 
@@ -147,5 +173,5 @@ class CooTest(jtu.JaxTestCase):
 
 
 if __name__ == "__main__":
-    # CooTest().test_is_symmetric()
+    # CooTest().test_from_dense()
     absltest.main(testLoader=jtu.JaxTestLoader())

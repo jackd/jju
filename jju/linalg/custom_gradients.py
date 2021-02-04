@@ -2,7 +2,6 @@ import jax
 import jax.numpy as jnp
 
 from jju.types import as_array_fun
-from jju.utils import bilinear_form
 
 
 def project(x, v):
@@ -15,7 +14,7 @@ def projector(v):
     return jax.tree_util.Partial(project, v=v)
 
 
-def eigh_rev(grad_w, grad_v, w, v, bilinear_form=bilinear_form):
+def eigh_rev(grad_w, grad_v, w, v, matmul_fun=jnp.matmul):
     n = w.size
     E = w[jnp.newaxis, :] - w[:, jnp.newaxis]
     vt = v.T
@@ -23,7 +22,7 @@ def eigh_rev(grad_w, grad_v, w, v, bilinear_form=bilinear_form):
     # grad_a = v (diag(grad_w) + (v^T v.grad / E)) v^T
     #        = v @ inner @ v.T
     inner = jnp.where(jnp.eye(n, dtype=bool), jnp.diag(grad_w), (vt @ grad_v) / E)
-    return bilinear_form(vt, inner, vt)
+    return matmul_fun(v, inner @ vt)
 
 
 def eigh_partial_rev(grad_w, grad_v, w, v, a, x0, outer_impl=jnp.outer):

@@ -18,8 +18,3 @@ def standardize_eigenvector_signs(v: jnp.ndarray) -> jnp.ndarray:
 def symmetrize(A: jnp.ndarray) -> jnp.ndarray:
     """Make symmetric and hermitian."""
     return (A + A.conj().T) / 2
-
-
-def bilinear_form(x: jnp.ndarray, A: jnp.ndarray, y: jnp.ndarray) -> jnp.ndarray:
-    """Return `x.T @ A @ y`."""
-    return x.T @ A @ y
