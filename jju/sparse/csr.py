@@ -7,7 +7,9 @@ from jju.sparse import coo
 
 
 @jax.jit
-def dot(data: jnp.ndarray, indices: jnp.ndarray, indptr: jnp.ndarray, v: jnp.ndarray):
+def matmul(
+    data: jnp.ndarray, indices: jnp.ndarray, indptr: jnp.ndarray, v: jnp.ndarray
+):
     """Based on implementation in https://github.com/google/jax/pull/4422."""
     nrows = indptr.shape[0] - 1
     v = jnp.asarray(v)
@@ -72,8 +74,8 @@ def masked_matmul(
     return masked_inner(indices, indptr, x.T, y)
 
 
-def dot_fun(data: jnp.ndarray, indices: jnp.ndarray, indptr: jnp.ndarray):
-    return jax.tree_util.Partial(dot, data, indices, indptr)
+def matmul_fun(data: jnp.ndarray, indices: jnp.ndarray, indptr: jnp.ndarray):
+    return jax.tree_util.Partial(matmul, data, indices, indptr)
 
 
 def masked_inner_fun(indices: jnp.ndarray, indptr: jnp.ndarray):
@@ -117,7 +119,7 @@ def from_dense(dense: jnp.ndarray):
 #         [No, ...] A @ B @ kernel, where A is the sparse matrix defined in csr format
 #           by (data, indptr, indices).
 #     """
-#     return dot(data, indptr, indices, B @ kernel)
+#     return matmul(data, indptr, indices, B @ kernel)
 
 
 # @jax.jit

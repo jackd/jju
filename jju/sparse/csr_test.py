@@ -19,7 +19,7 @@ class CsrTest(jtu.JaxTestCase):
         csr_mat = random_csr(rng, (No, Ni), sparsity=0.1)
         expected = csr_mat @ v
 
-        actual = csr.dot(
+        actual = csr.matmul(
             jnp.array(csr_mat.data),
             jnp.array(csr_mat.indices),
             jnp.array(csr_mat.indptr),
@@ -37,7 +37,7 @@ class CsrTest(jtu.JaxTestCase):
 
         expected = csr_mat @ B
 
-        actual = csr.dot(
+        actual = csr.matmul(
             jnp.array(csr_mat.data),
             jnp.array(csr_mat.indices),
             jnp.array(csr_mat.indptr),
@@ -128,8 +128,8 @@ class CsrTest(jtu.JaxTestCase):
 
         data, indptr, indices = csr.from_dense(np.array(expected.todense()))
         self.assertAllClose(data, expected.data)
-        self.assertAllClose(indptr, expected.indptr)
-        self.assertAllClose(indices, expected.indices)
+        self.assertAllClose(indptr, expected.indptr.astype(np.int32))
+        self.assertAllClose(indices, expected.indices.astype(np.int32))
 
 
 if __name__ == "__main__":

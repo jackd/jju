@@ -198,7 +198,7 @@ class LinalgCustomGradientsTest(jtu.JaxTestCase):
                 grad_v,
                 w,
                 v,
-                coo.dot_fun(data, row, col, jnp.zeros((size,))),
+                coo.matmul_fun(data, row, col, jnp.zeros((size,))),
                 x0,
                 outer_impl=coo.masked_outer_fun(row, col),
             )
@@ -248,7 +248,7 @@ class LinalgCustomGradientsTest(jtu.JaxTestCase):
                 grad_v,
                 w,
                 v,
-                csr.dot_fun(data, indices, indptr),
+                csr.matmul_fun(data, indices, indptr),
                 x0,
                 outer_impl=csr.masked_outer_fun(indices, indptr),
             )

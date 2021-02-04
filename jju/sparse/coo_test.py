@@ -25,8 +25,8 @@ class CooTest(jtu.JaxTestCase):
         expected = random_coo(rng, shape, sparsity=0.1)
         data, row, col = coo.from_dense(np.array(expected.todense()))
         self.assertAllClose(data, expected.data)
-        self.assertAllClose(row, expected.row)
-        self.assertAllClose(col, expected.col)
+        self.assertAllClose(row, expected.row.astype(np.int32))
+        self.assertAllClose(col, expected.col.astype(np.int32))
 
     def test_matvec(self):
         No = 79
@@ -36,7 +36,7 @@ class CooTest(jtu.JaxTestCase):
         coo_mat = random_coo(rng, (No, Ni), sparsity=0.1)
         expected = coo_mat @ v
 
-        actual = coo.dot(
+        actual = coo.matmul(
             jnp.array(coo_mat.data),
             jnp.array(coo_mat.row),
             jnp.array(coo_mat.col),
@@ -55,7 +55,7 @@ class CooTest(jtu.JaxTestCase):
 
         expected = coo_mat @ B
 
-        actual = coo.dot(
+        actual = coo.matmul(
             jnp.array(coo_mat.data),
             jnp.array(coo_mat.row),
             jnp.array(coo_mat.col),

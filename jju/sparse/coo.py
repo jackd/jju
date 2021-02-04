@@ -67,9 +67,9 @@ def symmetrize(
 
 
 @jax.jit
-def dot(data, row, col, sized, v):
+def matmul(data, row, col, sized, v):
     """
-    Perform matrix-vector product `A @ v` with coo formatted matrix `A`.
+    Perform matrix premultiplication `A @ v` with coo formatted matrix `A`.
 
     Note the use of `sized` rather than `nrows` is to allow `matvec` to be compiled
     without static arguments. This is a work-around and is likely to change soon.
@@ -81,19 +81,21 @@ def dot(data, row, col, sized, v):
         row: row indices of nonzero values of `A`.
         col: column indices of nonzero values of `A`.
         sized: array with size `nrows`, the number of rows of `A`.
-        v:
+        v: [ncols, ...] array of the same dtype as `data`.
 
     Returns:
-        `n
+        `[sized.size, *v.shape[1:]]` array, same dtype as `data`.
     """
     assert_coo(data, row, col, sized)
     dv = jnp.reshape(data, (-1, *(1,) * (v.ndim - 1))) * v[col]
     return jnp.zeros((sized.size, *v.shape[1:]), dtype=dv.dtype).at[row].add(dv)
 
 
-def dot_fun(data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, sized: jnp.ndarray):
+def matmul_fun(
+    data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, sized: jnp.ndarray
+):
     assert_coo(data, row, col, sized)
-    return jax.tree_util.Partial(dot, data, row, col, sized)
+    return jax.tree_util.Partial(matmul, data, row, col, sized)
 
 
 def masked_matmul(row, col, x, y):
