@@ -22,7 +22,6 @@ Algorithms in this module are from [Duersch _et. al_](https://epubs.siam.org/doi
 
 ## TODO
 
-- Fix broken `[basic_test.py](basic_test.py):BasicLobpcgTest.test_lobpcg_coo_vjp`: see [this issue](https://github.com/google/jax/issues/5609)
 - Ortho implementation
 - jvp?
 - fixed number of iterations implementation?
