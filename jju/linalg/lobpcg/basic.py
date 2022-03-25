@@ -20,8 +20,7 @@ def lobpcg(
     tol: Optional[float] = None,
     max_iters: int = 1000,
 ):
-    """
-    Find some of the eigenpairs for the generalized eigenvalue problem (A, B).
+    """Find some of the eigenpairs for the generalized eigenvalue problem (A, B).
 
     Args:
         A: `[m, m]` hermitian matrix, or function representing pre-multiplication by an

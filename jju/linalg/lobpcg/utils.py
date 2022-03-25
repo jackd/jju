@@ -77,9 +77,12 @@ def _eigh(a, largest: bool):
 
 @partial(jax.jit, static_argnums=(3,))
 def rayleigh_ritz(
-    S: jnp.ndarray, A: ArrayOrFun, B: Optional[ArrayOrFun] = None, largest: bool = False
+    S: jnp.ndarray,
+    A: ArrayOrFun,
+    B: Optional[ArrayOrFun] = None,
+    largest: bool = True,
 ):
-    """
+    """Rayleigh Ritz algorithm.
 
     Based on algorithm2 of [duersch2018](
         https://epubs.siam.org/doi/abs/10.1137/17M1129830)
