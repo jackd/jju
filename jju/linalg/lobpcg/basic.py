@@ -87,7 +87,7 @@ def check(x):
     assert jnp.all(jnp.isfinite(x))
 
 
-# @partial(jax.jit, static_argnums=(4, 5))
+@partial(jax.jit, static_argnums=(5,))
 def _lobpcg(
     A: ArrayFun,
     X0: jnp.ndarray,
