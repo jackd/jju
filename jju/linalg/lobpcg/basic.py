@@ -8,6 +8,7 @@ from jju.linalg.lobpcg import utils
 from jju.types import ArrayFun, ArrayOrFun, as_array_fun
 
 
+# @partial(jax.jit, static_argnums=(5,))
 def lobpcg(
     A: ArrayOrFun,
     X0: jnp.ndarray,
