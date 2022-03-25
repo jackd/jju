@@ -22,7 +22,7 @@ def compute_residual(
 
 
 @jax.jit
-def approx_matrix_norm2(A: Optional[ArrayOrFun], ohm: jnp.ndarray):
+def approx_matrix_norm2(A: ArrayOrFun, ohm: jnp.ndarray):
     """
     Approximation of matrix 2-norm of `A`.
 

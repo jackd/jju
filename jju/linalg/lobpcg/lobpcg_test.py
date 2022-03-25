@@ -36,7 +36,10 @@ def rayleigh_ritz_scipy(
         C: [ns, ns] float matrix.
     """
     A = as_array_fun(A)
-    BS = as_array_fun(B)(S)
+    if B is not None:
+        BS = as_array_fun(B)(S)
+    else:
+        raise NotImplementedError("")
     SBS = S.T @ BS
 
     SAS = S.T @ A(S)

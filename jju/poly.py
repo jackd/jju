@@ -23,11 +23,12 @@ def matrix_poly_vector_prod_from_roots(
     Returns:
         output of the same size as `x`.
     """
-    A = as_array_fun(A)
+    A_fun = as_array_fun(A)
+    del A
     assert len(roots.shape) == 1
 
     def body_fun(carry: jnp.ndarray, ri: float):
-        el = A(carry) - ri * carry
+        el = A_fun(carry) - ri * carry
         return el, el
 
     res, _ = jax.lax.scan(body_fun, x, roots)
@@ -82,11 +83,12 @@ def matrix_poly_vector_prod_from_coeffs(
     Returns:
         output of the same size as `x`.
     """
-    A = as_array_fun(A)
+    A_fun = as_array_fun(A)
+    del A
     assert len(coeffs.shape) == 1
 
     def body_fun(carry: jnp.ndarray, coeff: float):
-        el = A(carry) + coeff * x
+        el = A_fun(carry) + coeff * x
         return el, el
 
     res, _ = jax.lax.scan(body_fun, coeffs[-1] * x, coeffs[-2::-1])

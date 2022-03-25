@@ -8,7 +8,7 @@ ArrayFun = Callable[[jnp.ndarray], jnp.ndarray]
 ArrayOrFun = Union[jnp.ndarray, ArrayFun]
 
 
-def matmul_fun(X: jnp.array) -> Callable[[jnp.ndarray], jnp.ndarray]:
+def matmul_fun(X: jnp.ndarray) -> Callable[[jnp.ndarray], jnp.ndarray]:
     """Return a function that pre-multiplies the argument by `X`."""
     return jax.tree_util.Partial(jnp.matmul, X)
 
