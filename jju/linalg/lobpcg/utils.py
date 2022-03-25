@@ -75,6 +75,7 @@ def _eigh(a, largest: bool):
     return w, v
 
 
+@partial(jax.jit, static_argnums=(3,))
 def rayleigh_ritz(
     S: jnp.ndarray, A: ArrayOrFun, B: Optional[ArrayOrFun] = None, largest: bool = False
 ):
