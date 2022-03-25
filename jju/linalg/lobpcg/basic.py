@@ -13,6 +13,7 @@ def lobpcg(
     X0: jnp.ndarray,
     B: Optional[ArrayOrFun] = None,
     iK: Optional[ArrayOrFun] = None,
+    Y: Optional[jnp.ndarray] = None,
     largest: bool = False,
     k: Optional[int] = None,
     tol: Optional[float] = None,
@@ -27,6 +28,9 @@ def lobpcg(
         X0: `[m, n]`, `k <= n < m`. Initial guess of eigenvectors.
         B: same type as A. If not given, identity is used.
         iK: Optional inverse preconditioner. If not given, identity is used.
+        Y: n-by-sizeY matrix of constraints (non-sparse), sizeY < n
+            The iterations will be performed in the B-orthogonal complement
+            of the column-space of Y. Y must be full rank.
         largest: if True, return the largest `k` eigenvalues, otherwise the smallest.
         k: number of eigenpairs to return. Uses `n` if not provided.
         tol: tolerance for convergence.
@@ -63,10 +67,10 @@ def lobpcg(
             feps = 2.23e-16
         else:
             raise KeyError(dtype)
-        tol = feps ** 0.5
+        tol = feps**0.5
 
     k = k or X0.shape[1]
-    return _lobpcg(A, X0, B, iK, largest, k, tol, max_iters, A_norm, B_norm)
+    return _lobpcg(A, X0, B, iK, Y, largest, k, tol, max_iters, A_norm, B_norm)
 
 
 class _BasicState(NamedTuple):
@@ -75,6 +79,8 @@ class _BasicState(NamedTuple):
     X: jnp.ndarray  # [m, n]
     R: jnp.ndarray  # [m, n]
     P: jnp.ndarray  # [m, n]
+    rerr: jnp.ndarray  #  error
+    mask: jnp.ndarray  # mask of innactive directions
 
 
 def check(x):
@@ -87,6 +93,7 @@ def _lobpcg(
     X0: jnp.ndarray,
     B: ArrayFun,
     iK: ArrayFun,
+    Y: jnp.ndarray,
     largest: bool,
     k: int,
     tol: float,
@@ -94,36 +101,70 @@ def _lobpcg(
     A_norm: float,
     B_norm: float,
 ):
-    m, nx = X0.shape
-    dtype = X0.dtype
-    rayleigh_ritz = partial(utils.rayleigh_ritz, A=A, B=B, largest=largest)
-    compute_residual = partial(utils.compute_residual, A=A, B=B)
-    compute_residual_error = partial(
-        utils.compute_residual_error, A_norm=A_norm, B_norm=B_norm
-    )
-
+    @jax.jit
     def cond_fun(s: _BasicState):
-        rerr = compute_residual_error(s.R, s.eig_vals, s.X)
-        num_converged = jnp.count_nonzero(rerr < tol)
+        num_converged = jnp.count_nonzero(s.rerr < tol)
         return jnp.logical_and(s.iteration < max_iters, num_converged < k)
 
+    @jax.jit
     def body_fun(s: _BasicState):
-        iteration, eig_vals, X, R, P = s
-        S = jnp.concatenate((X, iK(R), P), axis=1)
-        eig_vals, C = rayleigh_ritz(S)
+        iteration, eig_vals, X, R, P, rerr, mask = s
+
+        mask_full = jnp.outer(jnp.full(m, True, dtype=jnp.bool_), mask)
+        R = jnp.where(mask_full, R_init, R)
+        P = jnp.where(mask_full, P_init, P)
+
+        # Apply preconditioner T to the active residuals.
+        R = iK(R)
+        if Y is not None:
+            R = utils.apply_constraints(R, YBY, BY, Y)
+
+        # R = projection(R, B, X)
+        # R = projection(R, B, jnp.concatenate((X, P), axis=1))
+
+        # B-orthonormalize residues R and P
+        if B is not None:
+            BR = B(R)
+            BP = B(P)
+        else:
+            BR = R
+            BP = P
+        R, BR = utils.orthonormalize(R, BR)
+        P, BP = utils.orthonormalize(P, BP)
+
+        S = jnp.concatenate((X, R, P), axis=1)
+        eig_vals, C = utils.rayleigh_ritz(S, A, B, largest)
         eig_vals = eig_vals[:nx]
         C = C[:, :nx]
-        X = S @ C
-        R = compute_residual(eig_vals, X)
-        P = S[:, nx:] @ C[nx:]
-        return _BasicState(iteration + 1, eig_vals, X, R, P)
 
-    eig_vals, C = rayleigh_ritz(X0)
-    X = X0 @ C
-    R = compute_residual(eig_vals, X)
-    P = jnp.zeros((m, 0), dtype=dtype)
-    state = _BasicState(1, eig_vals, X, R, P)
-    # unroll first loop because P changes size
-    state = body_fun(state)
+        P = S[:, nx:] @ C[nx:]
+        X = S[:, :nx] @ C[:nx] + P
+        R = utils.compute_residual(eig_vals, X, A, B)
+        rerr = utils.compute_residual_error(R, eig_vals, X, A_norm, B_norm)
+        mask = jnp.logical_or(mask, rerr < tol)
+
+        return _BasicState(iteration + 1, eig_vals, X, R, P, rerr, mask)
+
+    if Y is not None:
+        BY = B(Y)
+        YBY = Y.T @ BY
+
+    m, nx = X0.shape
+    rng = jax.random.PRNGKey(42)
+    S_init = jax.random.normal(rng, (m, 3 * nx)) / jnp.sqrt(m)
+    R_init = S_init[:, nx : 2 * nx]
+    P_init = S_init[:, 2 * nx :]
+
+    # Initialization
+    state = _BasicState(
+        1,
+        eig_vals=jnp.full(nx, jnp.nan, dtype=X0.dtype),
+        X=X0,
+        R=R_init,
+        P=P_init,
+        rerr=jnp.full(nx, jnp.inf, dtype=X0.dtype),
+        mask=jnp.full(nx, False, dtype=jnp.bool_),
+    )
+
     state = jax.lax.while_loop(cond_fun, body_fun, state)
-    return state.eig_vals[:k], state.X[:, :k]
+    return state.eig_vals, state.X

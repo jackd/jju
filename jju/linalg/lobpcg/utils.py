@@ -116,9 +116,45 @@ def rayleigh_ritz(
     RDSASD = jax.scipy.linalg.solve_triangular(R_low, DSASD, lower=True)
     RDSASDR = jax.scipy.linalg.solve_triangular(R_low, RDSASD.T, lower=True).T
 
-    eig_vals, Z = eigh(RDSASDR, largest=largest)
+    eig_vals, Z = eigh(RDSASDR, largest)
     if B is not None:
         Z /= jnp.linalg.norm(Z, ord=2, axis=0)
     # C = d_left * R_inv @ Z
     C = d_left * (jax.scipy.linalg.solve_triangular(R_up, Z, lower=False))
     return eig_vals, C
+
+
+@jax.jit
+def projection(R, B, X):
+    BX = B(X)
+    return R - X @ (BX.T @ R)
+
+
+@jax.jit
+def orthonormalize(V, BV):
+    norm = V.max(axis=0) + jnp.finfo(V.dtype).eps
+    V = V / norm
+    BV = BV / norm
+    VBV = V.T @ BV
+    if False:
+        VBV = jax.scipy.linalg.cholesky(VBV, overwrite_a=True)
+        VBV = jax.scipy.linalg.inv(VBV, overwrite_a=True)
+        V = V @ VBV
+        if B is not None:
+            BV = BV @ VBV
+        else:
+            BV = None
+    else:
+        gram_VBV = jax.scipy.linalg.cho_factor(VBV)
+        V = (jax.scipy.linalg.cho_solve(gram_VBV, V.T)).T
+        BV = None
+    return V, BV
+
+
+@jax.jit
+def apply_constraints(V, YBY, BY, Y):
+    """Changes V in place."""
+    YBV = BY.T @ V
+    YBY_chol = jax.scipy.linalg.cho_factor(YBY)
+    tmp = jax.scipy.linalg.cho_solve(YBY_chol, YBV)
+    return V - Y @ tmp
