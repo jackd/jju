@@ -61,8 +61,7 @@ Let's work with some examples.
 import numpy as np
 import scipy.linalg
 from scipy.sparse import issparse, spdiags
-from scipy.sparse.linalg import LinearOperator
-from scipy.sparse.linalg import lobpcg
+from scipy.sparse.linalg import LinearOperator, lobpcg
 ```
 
 ```python

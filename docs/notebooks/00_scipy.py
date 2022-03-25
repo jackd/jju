@@ -56,8 +56,7 @@
 import numpy as np
 import scipy.linalg
 from scipy.sparse import issparse, spdiags
-from scipy.sparse.linalg import LinearOperator
-from scipy.sparse.linalg import lobpcg
+from scipy.sparse.linalg import LinearOperator, lobpcg
 
 
 def generate_wishart(N=1000, T=1100):

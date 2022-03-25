@@ -55,12 +55,9 @@ They have an implementation of differentiable SVD in Pytorch.
 ```python
 import jax
 import jax.numpy as jnp
-import scipy.sparse
-import numpy as onp
 
 from jju.linalg.lobpcg.basic import lobpcg
-from jju.linalg.lobpcg.utils import identity, rayleigh_ritz
-from jju.types import as_array_fun
+
 ```
 
 ```python
@@ -223,10 +220,6 @@ ev
 
 Let's compare to what gives scipy.
 
-```python
-from scipy.sparse.linalg import LinearOperator
-from scipy.sparse import issparse, spdiags
-```
 
 ```python
 if False:

@@ -51,12 +51,9 @@
 # +
 import jax
 import jax.numpy as jnp
-import scipy.sparse
-import numpy as onp
 
 from jju.linalg.lobpcg.basic import lobpcg
-from jju.linalg.lobpcg.utils import identity, rayleigh_ritz
-from jju.types import as_array_fun
+
 # -
 
 T = 100
@@ -136,10 +133,14 @@ ev
 
 N, T = 5000, 100
 rng = jax.random.PRNGKey(42)
+
+
 def generate_wishart(N=1000, T=1100):
     X = jax.random.normal(rng, (T, N))
     W = X.T @ X / T
     return W, X
+
+
 W, X = generate_wishart(N, T)
 X0 = jax.random.normal(rng, (N, 3))
 Y = jnp.eye(N, 5)
@@ -148,7 +149,7 @@ Y
 
 invA = jnp.diag(1.0 / (X**2).mean(0))
 
-# %time ev, X1 =  lobpcg(jnp.array(W), jnp.array(X0), Y=jnp.array(Y),largest=True, max_iters=39); ev.block_until_ready();#iK=invA, 
+# %time ev, X1 =  lobpcg(jnp.array(W), jnp.array(X0), Y=jnp.array(Y),largest=True, max_iters=39); ev.block_until_ready();#iK=invA,
 X1
 
 ev
@@ -157,27 +158,35 @@ ev
 # We have to fix it.
 
 # from jax.config import config; config.update("jax_enable_x64", False)
-# %time ev, X1 =  lobpcg(jnp.array(W, "float32"), jnp.array(X0, "float32"), Y=jnp.array(Y, "float32"),largest=True, max_iters=40); ev.block_until_ready();#iK=invA, 
+# %time ev, X1 =  lobpcg(jnp.array(W, "float32"), jnp.array(X0, "float32"), Y=jnp.array(Y, "float32"),largest=True, max_iters=40); ev.block_until_ready();#iK=invA,
 X1
 
-from jax.config import config; config.update("jax_enable_x64", True)
+from jax.config import config
 
-# %%time 
-ev, X1 =  lobpcg(jnp.array(W, "float64"), jnp.array(X0, "float64"), Y=jnp.array(Y, "float64"), largest=True, max_iters=40); ev.block_until_ready();
-#iK=invA, 
+config.update("jax_enable_x64", True)
+
+# %%time
+ev, X1 = lobpcg(
+    jnp.array(W, "float64"),
+    jnp.array(X0, "float64"),
+    Y=jnp.array(Y, "float64"),
+    largest=True,
+    max_iters=40,
+)
+ev.block_until_ready()
+# iK=invA,
 X1.block_until_ready()
 
 ev
 
-# ## scipy run 
+# ## scipy run
 
 # Let's compare to what gives scipy.
 
-from scipy.sparse.linalg import LinearOperator
-from scipy.sparse import issparse, spdiags
 
 if False:
     import numpy as np
+
     print(N, T)
     N, T = 5000, 100
 
@@ -185,6 +194,7 @@ if False:
         X = np.random.randn(T, N)
         W = X.T @ X / T
         return W, X
+
     W, X = generate_wishart(N, T)
     rng = np.random.default_rng()
     X0 = rng.random((N, 3))
