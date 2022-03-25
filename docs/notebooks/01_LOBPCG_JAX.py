@@ -131,6 +131,7 @@ ev
 
 # ### test with constraints
 
+# +
 N, T = 5000, 100
 rng = jax.random.PRNGKey(42)
 
@@ -144,6 +145,7 @@ def generate_wishart(N=1000, T=1100):
 W, X = generate_wishart(N, T)
 X0 = jax.random.normal(rng, (N, 3))
 Y = jnp.eye(N, 5)
+# -
 
 Y
 
@@ -161,9 +163,11 @@ ev
 # %time ev, X1 =  lobpcg(jnp.array(W, "float32"), jnp.array(X0, "float32"), Y=jnp.array(Y, "float32"),largest=True, max_iters=40); ev.block_until_ready();#iK=invA,
 X1
 
+# +
 from jax.config import config
 
 config.update("jax_enable_x64", True)
+# -
 
 # %%time
 ev, X1 = lobpcg(
