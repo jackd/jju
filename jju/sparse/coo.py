@@ -48,7 +48,10 @@ def is_ordered(row, col, ncols: Optional[int] = None, strict: bool = False) -> b
 
 @jax.jit
 def symmetrize(
-    data: jnp.ndarray, row: jnp.ndarray, col: jnp.ndarray, ncols: Optional[int] = None,
+    data: jnp.ndarray,
+    row: jnp.ndarray,
+    col: jnp.ndarray,
+    ncols: Optional[int] = None,
 ):
     """
     Get data of `(A + A.T) / 2` assuming `A` has symmetric sparsity.

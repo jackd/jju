@@ -68,7 +68,7 @@ class PolyTest(jtu.JaxTestCase):
         coeffs = jnp.array([1.5, 2.0, 0, -3.0], dtype)
 
         actual = poly.poly_from_coeffs(coeffs, x)
-        expected = 1.5 + 2 * x - 3 * x ** 3
+        expected = 1.5 + 2 * x - 3 * x**3
         self.assertAllClose(actual, expected)
 
     def test_poly_from_roots_coeffs_consistent(self):
@@ -92,7 +92,12 @@ class PolyTest(jtu.JaxTestCase):
         poly_dim = 7
         rng = np.random.default_rng(0)
         roots = rng.normal(size=(poly_dim,)).astype(dtype)
-        x = rng.normal(size=(m, nx,)).astype(dtype)
+        x = rng.normal(
+            size=(
+                m,
+                nx,
+            )
+        ).astype(dtype)
         A = rng.normal(size=(m, m)).astype(dtype)
 
         coeffs = poly.roots_to_coeffs(roots)
