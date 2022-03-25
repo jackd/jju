@@ -96,7 +96,7 @@ def rayleigh_ritz(
 
         eig_vals: [ns] eigenvalues. Sorted in descending order if largest, otherwise
             ascending.
-        C: [ns, ns] float matrix satisfying:
+        C: [ns, ns] float matrix.
     """
     A = as_array_fun(A)
     if B is None:
