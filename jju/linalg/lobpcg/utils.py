@@ -106,7 +106,10 @@ def rayleigh_ritz(
     SBS = S.T @ BS
     d_right = jnp.diag(SBS) ** -0.5  # d_right * X == X @ D
     d_left = jnp.expand_dims(d_right, 1)  # d_left * X == D @ X
-    R_low = jnp.linalg.cholesky(d_left * SBS * d_right)  # upper triangular
+    # R_low = jnp.linalg.cholesky(d_left * SBS * d_right)  # lower triangular
+    R_low = jax.scipy.linalg.cholesky(
+        d_left * SBS * d_right, lower=True
+    )  # lower triangular
     R_up = R_low.T
 
     # R_inv = jnp.linalg.inv(R_up)
